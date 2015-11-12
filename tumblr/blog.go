@@ -2,26 +2,43 @@
 package tumblr
 
 import (
+	"fmt"
 	"net/url"
 )
 
 type Blog struct {
-	Title       string
-	Posts       int
-	Name        string
-	Url         string
-	Updated     int
-	Description string
-	Ask         bool
-	AskAnon     bool `json:ask_anon`
-	Likes       int
+	Title               string
+	Name                string
+	Posts               int
+	Url                 string
+	Updated             int
+	Description         string
+	IsNSFW              bool `json:"is_nsfw"`
+	Ask                 bool
+	AskPageTitle        string
+	AskAnon             bool `json:"ask_anon"`
+	SubmissionPageTitle string
+	ShareLikes          bool
+	Likes               int
+}
+
+type ResponseContainer struct {
+	Blog Blog `json:"blog"`
+}
+
+type BodyContainer struct {
+	Response ResponseContainer `json:"response"`
 }
 
 //This method returns general information about the blog, such as the title, number of posts, and other high-level data.
 func (a *API) GetBlogInfo(baseHostname string) (blog Blog, err error) {
+	body := BodyContainer{}
 
 	responseCh := make(chan response)
-	a.queryQueue <- query{BaseURL + "/blog/" + baseHostname + "/info", nil, &blog, _Get, responseCh}
+	a.queryQueue <- query{BaseURL + "/blog/" + baseHostname + "/info", nil, &body, _Get, responseCh}
+	fmt.Println(body)
+
+	blog = body.Response.Blog
 	return blog, (<-responseCh).err
 }
 

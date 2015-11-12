@@ -19,7 +19,7 @@ const (
 	_Get  = iota
 	_Post = iota
 	//BaseURL for all API calls
-	BaseURL = "https://api.tumblr.com/v2/"
+	BaseURL = "https://api.tumblr.com/v2"
 )
 
 var oauthClient = oauth.Client{
@@ -149,19 +149,14 @@ func (a API) apiPost(urlStr string, form url.Values, data interface{}) error {
 		return err
 	}
 	defer resp.Body.Close()
-	return decodeResponse(resp, data)
+	return decodeResponse(resp, &data)
 }
 
 // decodeResponse decodes the JSON response from the Twitter API.
 func decodeResponse(resp *http.Response, data interface{}) error {
 	if resp.StatusCode != 200 {
-		fmt.Println("err!")
-		fmt.Println(resp.Body)
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Println("error reading rep.body", err.Error())
-		}
-		resp.Body.Close()
+		fmt.Println("non 200 error")
+		body, _ := ioutil.ReadAll(resp.Body)
 		fmt.Println(string(body))
 	}
 	return json.NewDecoder(resp.Body).Decode(data)
@@ -174,7 +169,7 @@ func (a API) execQuery(urlStr string, form url.Values, data interface{}, method 
 	case _Get:
 		return a.apiGet(urlStr, form, data)
 	case _Post:
-		return a.apiPost(urlStr, form, data)
+		return a.apiPost(urlStr, form, &data)
 	default:
 		return fmt.Errorf("HTTP method not yet supported")
 	}
@@ -196,7 +191,7 @@ func (a *API) throttledQuery() {
 			<-a.bucket.SpendToken(1)
 		}
 
-		err := a.execQuery(url, form, data, method)
+		err := a.execQuery(url, form, &data, method)
 
 		// Check if Twitter returned a rate-limiting error
 		if err != nil {
