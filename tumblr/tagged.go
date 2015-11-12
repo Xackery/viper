@@ -5,7 +5,7 @@ import (
 )
 
 //Get posts with tag
-func (a *Api) GetTagged(tag string, params url.Values) (posts []Post, err error) {
+func (a *API) GetTagged(tag string, params url.Values) (posts []Post, err error) {
 
 	return
 }

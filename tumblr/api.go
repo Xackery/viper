@@ -17,7 +17,7 @@ import (
 const (
 	_Get  = iota
 	_Post = iota
-	//Base URL for all API calls
+	//BaseURL for all API calls
 	BaseURL = "https://api.twitter.com/1.1"
 )
 
@@ -28,7 +28,7 @@ var oauthClient = oauth.Client{
 }
 
 //Api wraps a session representing a access token/secret, and is the root object to call methods from
-type Api struct {
+type API struct {
 	Credentials          *oauth.Credentials
 	queryQueue           chan query
 	bucket               *tokenbucket.Bucket
@@ -49,13 +49,12 @@ type response struct {
 	err  error
 }
 
-//NewApi takes an user-specific access token and secret and returns a Api struct for that user.
-//The Api struct can be used for accessing any of the endpoints available.
-func NewAPI(accessToken string, accessTokenSecret string) *Api {
+//NewAPI takes an user-specific access token and secret and returns a Api struct for that user.
+func NewAPI(accessToken string, accessTokenSecret string) (api *API) {
 	//TODO figure out how much to buffer this channel
 	//A non-buffered channel will cause blocking when multiple queries are made at the same time
 	queue := make(chan query)
-	c := &Api{
+	api = &API{
 		Credentials: &oauth.Credentials{
 			Token:  accessToken,
 			Secret: accessTokenSecret,
@@ -65,8 +64,8 @@ func NewAPI(accessToken string, accessTokenSecret string) *Api {
 		returnRateLimitError: false,
 		HTTPClient:           http.DefaultClient,
 	}
-	go c.throttledQuery()
-	return c
+	go api.throttledQuery()
+	return api
 }
 
 //SetConsumerKey will set the application-specific consumer_key used in the initial OAuth process
@@ -84,29 +83,29 @@ func SetConsumerSecret(consumerSecret string) {
 // ReturnRateLimitError specifies behavior when the Twitter API returns a rate-limit error.
 // If set to true, the query will fail and return the error instead of automatically queuing and
 // retrying the query when the rate limit expires
-func (c *Api) ReturnRateLimitError(b bool) {
-	c.returnRateLimitError = b
+func (a *API) ReturnRateLimitError(b bool) {
+	a.returnRateLimitError = b
 }
 
 //EnableThrottling is used to enable query throttling with the tokenbucket algorithm
-func (c *Api) EnableThrottling(rate time.Duration, bufferSize int64) {
-	c.bucket = tokenbucket.NewBucket(rate, bufferSize)
+func (a *API) EnableThrottling(rate time.Duration, bufferSize int64) {
+	a.bucket = tokenbucket.NewBucket(rate, bufferSize)
 }
 
 //DisableThrottling is used to enable query throttling with the tokenbucket algorithm
-func (c *Api) DisableThrottling() {
-	c.bucket = nil
+func (a *API) DisableThrottling() {
+	a.bucket = nil
 }
 
 // SetDelay will set the delay between throttled queries
 // To turn of throttling, set it to 0 seconds
-func (c *Api) SetDelay(t time.Duration) {
-	c.bucket.SetRate(t)
+func (a *API) SetDelay(t time.Duration) {
+	a.bucket.SetRate(t)
 }
 
 //GetDelay retrives the delay currently set between throttled queries
-func (c *Api) GetDelay() time.Duration {
-	return c.bucket.GetRate()
+func (a *API) GetDelay() time.Duration {
+	return a.bucket.GetRate()
 }
 
 //AuthorizationURL generates the authorization URL for the first part of the OAuth handshake.
@@ -120,7 +119,7 @@ func AuthorizationURL(callback string) (string, *oauth.Credentials, error) {
 	return oauthClient.AuthorizationURL(tempCred, nil), tempCred, nil
 }
 
-//Retrieve credentials from Oauth provider
+//GetCredentials from Oauth provider
 func GetCredentials(tempCred *oauth.Credentials, verifier string) (*oauth.Credentials, url.Values, error) {
 	return oauthClient.RequestToken(http.DefaultClient, tempCred, verifier)
 }
@@ -133,8 +132,8 @@ func cleanValues(v url.Values) url.Values {
 }
 
 // apiGet issues a GET request to the Twitter API and decodes the response JSON to data.
-func (c Api) apiGet(urlStr string, form url.Values, data interface{}) error {
-	resp, err := oauthClient.Get(c.HTTPClient, c.Credentials, urlStr, form)
+func (a API) apiGet(urlStr string, form url.Values, data interface{}) error {
+	resp, err := oauthClient.Get(a.HTTPClient, a.Credentials, urlStr, form)
 	if err != nil {
 		return err
 	}
@@ -143,8 +142,8 @@ func (c Api) apiGet(urlStr string, form url.Values, data interface{}) error {
 }
 
 // apiPost issues a POST request to the Twitter API and decodes the response JSON to data.
-func (c Api) apiPost(urlStr string, form url.Values, data interface{}) error {
-	resp, err := oauthClient.Post(c.HTTPClient, c.Credentials, urlStr, form)
+func (a API) apiPost(urlStr string, form url.Values, data interface{}) error {
+	resp, err := oauthClient.Post(a.HTTPClient, a.Credentials, urlStr, form)
 	if err != nil {
 		return err
 	}
@@ -162,12 +161,12 @@ func decodeResponse(resp *http.Response, data interface{}) error {
 
 //query executes a query to the specified url, sending the values specified by form, and decodes the response JSON to data
 //method can be either _GET or _POST
-func (c Api) execQuery(urlStr string, form url.Values, data interface{}, method int) error {
+func (a API) execQuery(urlStr string, form url.Values, data interface{}, method int) error {
 	switch method {
 	case _Get:
-		return c.apiGet(urlStr, form, data)
+		return a.apiGet(urlStr, form, data)
 	case _Post:
-		return c.apiPost(urlStr, form, data)
+		return a.apiPost(urlStr, form, data)
 	default:
 		return fmt.Errorf("HTTP method not yet supported")
 	}
@@ -176,8 +175,8 @@ func (c Api) execQuery(urlStr string, form url.Values, data interface{}, method 
 // throttledQuery executes queries and automatically throttles them according to SECONDS_PER_QUERY
 // It is the only function that reads from the queryQueue for a particular *Api struct
 
-func (c *Api) throttledQuery() {
-	for q := range c.queryQueue {
+func (a *API) throttledQuery() {
+	for q := range a.queryQueue {
 		url := q.url
 		form := q.form
 		data := q.data //This is where the actual response will be written
@@ -185,11 +184,11 @@ func (c *Api) throttledQuery() {
 
 		responseCh := q.responseCh
 
-		if c.bucket != nil {
-			<-c.bucket.SpendToken(1)
+		if a.bucket != nil {
+			<-a.bucket.SpendToken(1)
 		}
 
-		err := c.execQuery(url, form, data, method)
+		err := a.execQuery(url, form, data, method)
 
 		// Check if Twitter returned a rate-limiting error
 		if err != nil {
@@ -221,6 +220,6 @@ func (c *Api) throttledQuery() {
 }
 
 // Close query queue
-func (c *Api) Close() {
-	close(c.queryQueue)
+func (a *API) Close() {
+	close(a.queryQueue)
 }
