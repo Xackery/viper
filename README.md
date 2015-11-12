@@ -11,7 +11,7 @@ Features
 
 Installation
 ----
-To install, simply `go get github.com/xackery/viper/tumblr`.
+To install, simply `go get github.com/xackery/viper/tumblr` in a command line, followed by the usage example
 
 
 Usage Example
@@ -19,7 +19,10 @@ Usage Example
 
 
 ```
-	
+	tumblr.SetConsumerKey("YourKey")
+	tumblr.SetConsumerSecret("YourSecret")
+	api := tumblr.NewAPI("YourTokenKey", "YourTokenSecret")
+
 ```
 
 Options

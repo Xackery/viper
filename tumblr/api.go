@@ -6,6 +6,7 @@ package tumblr
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"time"
@@ -18,7 +19,7 @@ const (
 	_Get  = iota
 	_Post = iota
 	//BaseURL for all API calls
-	BaseURL = "https://api.twitter.com/1.1"
+	BaseURL = "https://api.tumblr.com/v2/"
 )
 
 var oauthClient = oauth.Client{
@@ -27,7 +28,7 @@ var oauthClient = oauth.Client{
 	TokenRequestURI:               "https://www.tumblr.com/oauth/access_token",
 }
 
-//Api wraps a session representing a access token/secret, and is the root object to call methods from
+//API wraps a session representing a access token/secret, and is the root object to call methods from
 type API struct {
 	Credentials          *oauth.Credentials
 	queryQueue           chan query
@@ -155,6 +156,13 @@ func (a API) apiPost(urlStr string, form url.Values, data interface{}) error {
 func decodeResponse(resp *http.Response, data interface{}) error {
 	if resp.StatusCode != 200 {
 		fmt.Println("err!")
+		fmt.Println(resp.Body)
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Println("error reading rep.body", err.Error())
+		}
+		resp.Body.Close()
+		fmt.Println(string(body))
 	}
 	return json.NewDecoder(resp.Body).Decode(data)
 }

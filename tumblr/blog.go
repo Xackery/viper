@@ -6,6 +6,15 @@ import (
 )
 
 type Blog struct {
+	Title       string
+	Posts       int
+	Name        string
+	Url         string
+	Updated     int
+	Description string
+	Ask         bool
+	AskAnon     bool `json:ask_anon`
+	Likes       int
 }
 
 //This method returns general information about the blog, such as the title, number of posts, and other high-level data.
