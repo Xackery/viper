@@ -12,7 +12,7 @@ type Blog struct {
 func (a *Api) GetBlogInfo(baseHostname string) (blog Blog, err error) {
 
 	responseCh := make(chan response)
-	a.queryQueue <- query{BaseUrl + "/blog/" + baseHostname + "/info", nil, &blog, _GET, responseCh}
+	a.queryQueue <- query{BaseURL + "/blog/" + baseHostname + "/info", nil, &blog, _GET, responseCh}
 	return blog, (<-responseCh).err
 }
 

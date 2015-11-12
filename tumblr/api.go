@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	_GET    = iota
-	_POST   = iota
-	BaseUrl = "https://api.twitter.com/1.1"
+	_Get  = iota
+	_Post = iota
+	//Base URL for all API calls
+	BaseURL = "https://api.twitter.com/1.1"
 )
 
 var oauthClient = oauth.Client{
@@ -26,12 +27,13 @@ var oauthClient = oauth.Client{
 	TokenRequestURI:               "https://www.tumblr.com/oauth/access_token",
 }
 
+//Api wraps a session representing a access token/secret, and is the root object to call methods from
 type Api struct {
 	Credentials          *oauth.Credentials
 	queryQueue           chan query
 	bucket               *tokenbucket.Bucket
 	returnRateLimitError bool
-	HttpClient           *http.Client
+	HTTPClient           *http.Client
 }
 
 type query struct {
@@ -47,12 +49,9 @@ type response struct {
 	err  error
 }
 
-const DEFAULT_DELAY = 0 * time.Second
-const DEFAULT_CAPACITY = 5
-
 //NewApi takes an user-specific access token and secret and returns a Api struct for that user.
 //The Api struct can be used for accessing any of the endpoints available.
-func NewApi(accessToken string, accessTokenSecret string) *Api {
+func NewAPI(accessToken string, accessTokenSecret string) *Api {
 	//TODO figure out how much to buffer this channel
 	//A non-buffered channel will cause blocking when multiple queries are made at the same time
 	queue := make(chan query)
@@ -64,7 +63,7 @@ func NewApi(accessToken string, accessTokenSecret string) *Api {
 		queryQueue:           queue,
 		bucket:               nil,
 		returnRateLimitError: false,
-		HttpClient:           http.DefaultClient,
+		HTTPClient:           http.DefaultClient,
 	}
 	go c.throttledQuery()
 	return c
@@ -72,14 +71,14 @@ func NewApi(accessToken string, accessTokenSecret string) *Api {
 
 //SetConsumerKey will set the application-specific consumer_key used in the initial OAuth process
 //This key is listed on https://dev.twitter.com/apps/YOUR_APP_ID/show
-func SetConsumerKey(consumer_key string) {
-	oauthClient.Credentials.Token = consumer_key
+func SetConsumerKey(consumerKey string) {
+	oauthClient.Credentials.Token = consumerKey
 }
 
 //SetConsumerSecret will set the application-specific secret used in the initial OAuth process
 //This secret is listed on https://dev.twitter.com/apps/YOUR_APP_ID/show
-func SetConsumerSecret(consumer_secret string) {
-	oauthClient.Credentials.Secret = consumer_secret
+func SetConsumerSecret(consumerSecret string) {
+	oauthClient.Credentials.Secret = consumerSecret
 }
 
 // ReturnRateLimitError specifies behavior when the Twitter API returns a rate-limit error.
@@ -89,12 +88,12 @@ func (c *Api) ReturnRateLimitError(b bool) {
 	c.returnRateLimitError = b
 }
 
-// Enable query throttling using the tokenbucket algorithm
+//EnableThrottling is used to enable query throttling with the tokenbucket algorithm
 func (c *Api) EnableThrottling(rate time.Duration, bufferSize int64) {
 	c.bucket = tokenbucket.NewBucket(rate, bufferSize)
 }
 
-// Disable query throttling
+//DisableThrottling is used to enable query throttling with the tokenbucket algorithm
 func (c *Api) DisableThrottling() {
 	c.bucket = nil
 }
@@ -105,6 +104,7 @@ func (c *Api) SetDelay(t time.Duration) {
 	c.bucket.SetRate(t)
 }
 
+//GetDelay retrives the delay currently set between throttled queries
 func (c *Api) GetDelay() time.Duration {
 	return c.bucket.GetRate()
 }
@@ -120,6 +120,7 @@ func AuthorizationURL(callback string) (string, *oauth.Credentials, error) {
 	return oauthClient.AuthorizationURL(tempCred, nil), tempCred, nil
 }
 
+//Retrieve credentials from Oauth provider
 func GetCredentials(tempCred *oauth.Credentials, verifier string) (*oauth.Credentials, url.Values, error) {
 	return oauthClient.RequestToken(http.DefaultClient, tempCred, verifier)
 }
@@ -133,7 +134,7 @@ func cleanValues(v url.Values) url.Values {
 
 // apiGet issues a GET request to the Twitter API and decodes the response JSON to data.
 func (c Api) apiGet(urlStr string, form url.Values, data interface{}) error {
-	resp, err := oauthClient.Get(c.HttpClient, c.Credentials, urlStr, form)
+	resp, err := oauthClient.Get(c.HTTPClient, c.Credentials, urlStr, form)
 	if err != nil {
 		return err
 	}
@@ -143,7 +144,7 @@ func (c Api) apiGet(urlStr string, form url.Values, data interface{}) error {
 
 // apiPost issues a POST request to the Twitter API and decodes the response JSON to data.
 func (c Api) apiPost(urlStr string, form url.Values, data interface{}) error {
-	resp, err := oauthClient.Post(c.HttpClient, c.Credentials, urlStr, form)
+	resp, err := oauthClient.Post(c.HTTPClient, c.Credentials, urlStr, form)
 	if err != nil {
 		return err
 	}
@@ -163,9 +164,9 @@ func decodeResponse(resp *http.Response, data interface{}) error {
 //method can be either _GET or _POST
 func (c Api) execQuery(urlStr string, form url.Values, data interface{}, method int) error {
 	switch method {
-	case _GET:
+	case _Get:
 		return c.apiGet(urlStr, form, data)
-	case _POST:
+	case _Post:
 		return c.apiPost(urlStr, form, data)
 	default:
 		return fmt.Errorf("HTTP method not yet supported")
