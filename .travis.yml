@@ -2,4 +2,3 @@ language: go
 go: 1.5
 install:
   - go get github.com/xackery/viper/tumblr
-  - go get -v .
